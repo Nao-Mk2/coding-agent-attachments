@@ -134,6 +134,21 @@ Pull Request comment reply 用の GitHub ツール、または deterministic scr
 
 投稿対象は「元の Copilot コメント」であり、thread 全体への一般コメントではない。
 
+**GraphQL mutation による返信投稿の実装例:**
+
+```bash
+gh api graphql --input - <<'EOF'
+{
+  "query": "mutation { addPullRequestReviewThreadReply(input: {pullRequestReviewThreadId: \"THREAD_ID\", body: \"REPLY_BODY\"}) { comment { id url } } }"
+}
+EOF
+```
+
+- `pullRequestReviewThreadId`: review thread の GraphQL ID（例：`PRRT_kwDOOT5Gyc6NNGxa`）
+- `body`: 返信本文（例：`https://github.com/owner/repo/commit/HASH で対応`）
+- mutation 名は `addPullRequestReviewThreadReply`
+- 入力オブジェクト `AddPullRequestReviewThreadReplyInput` は `pullRequestReviewThreadId` と `body` を必須パラメータとする
+
 ### 8. reply 成功後に thread を resolve する
 
 reply が成功した thread だけ resolve する。
@@ -142,6 +157,21 @@ reply が成功した thread だけ resolve する。
 
 - reply に失敗した場合: resolve しない
 - reply は成功したが resolve に失敗した場合: 返信済みとして報告し、resolve 失敗を別途報告する
+
+**GraphQL mutation による thread resolve の実装例:**
+
+```bash
+gh api graphql --input - <<'EOF'
+{
+  "query": "mutation { resolveReviewThread(input: {threadId: \"THREAD_ID\"}) { thread { id isResolved } } }"
+}
+EOF
+```
+
+- `threadId`: review thread の GraphQL ID（例：`PRRT_kwDOOT5Gyc6NNGxa`）
+- mutation 名は `resolveReviewThread`
+- 入力オブジェクト `ResolveReviewThreadInput` は `threadId` を必須パラメータとする
+- 返り値で `isResolved: true` を確認して成功判定
 
 ## 分岐ルール
 

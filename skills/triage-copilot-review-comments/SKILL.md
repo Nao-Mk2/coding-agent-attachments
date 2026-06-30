@@ -230,13 +230,32 @@ Don't コメントへの返信も忘れずに行う（対応しない理由を�
 
 ## コミットメッセージ形式
 
+**重要**: `discussion_id` の形式を正しく指定すること。
+
 1行目（subject）: 修正内容を端的に書く（日本語可）
 空行
-本文（body）: 必ず以下の行を含める
+本文（body）: 必ず以下の行を含める（スペース2文字のインデント）
 
-  {discussion_id}
+  r{discussion_id}
+
+例：
+
+```
+fix: substring 後のバッククォート開閉不整合を解決
+
+メッセージ長超過時に description を substring で途中切断すると、
+バッククォートの開閉が不整合になり Slack 側の表示が崩れる。
+トリム後のバッククォート数が奇数のときだけ閉じることで、
+開閉の整合性を保つようにした。
+
+  r3497195823
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+```
+
+- `discussion_id` には URL の末尾の `discussion_r` 部分の数字を `r` で接頭辞することで指定（例：URL が `...#discussion_r3497195823` なら `r3497195823`）
+- discussion_id は単独行、スペース2文字インデント
+- `git log --grep="r{discussion_id}"` で検索可能な形にすること
 
 ## 完了時の報告
 
