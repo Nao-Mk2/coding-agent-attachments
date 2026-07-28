@@ -1,8 +1,13 @@
 ---
-description: Use when reviewing GitHub pull requests, unresolved review comments, current branch PR detection, r{discussion_id} references in commit messages, and posting "{commit URL} で対応" replies.
+description: Use when reviewing GitHub pull requests, unresolved review comments, current branch PR detection, r{comment ID} references in commit messages, and posting "{commit URL} で対応" replies.
 license: MIT
+metadata:
+    github-path: skills/reply-copilot-review-comments
+    github-ref: refs/heads/main
+    github-repo: https://github.com/Nao-Mk2/coding-agent-attachments
+    github-tree-sha: 857dc4fb35c07272cd9a415d874532317481e853
+name: reply-copilot-review-comments
 ---
-
 # Reply Copilot Review Comments
 
 ## Deterministic Path
@@ -10,7 +15,7 @@ license: MIT
 
 - 現在ブランチに紐づく PR の自動取得
 - unresolved かつ reviewer 一致の thread 抽出
-- `r{discussion_id}` とコミットの突き合わせ
+- `r{comment ID}` とコミットの突き合わせ
 - 重複返信の回避
 - reply 投稿
 - reply 成功後の thread resolve
@@ -45,13 +50,13 @@ PR 番号未指定時は、現在ブランチに紐づく PR を `gh pr view --j
 
 スクリプトの実行結果で `unmatched` コメントが出た場合：
 
-1. コミットメッセージに `r{discussion_id}` が含まれているか確認する
+1. コミットメッセージに `r{comment ID}` が含まれているか確認する
    ```bash
-   git log --grep="r{discussion_id}" -1 --format=%H
+   git log --grep="r{comment ID}" -1 --format=%H
    ```
-
+   
 2. マッチしない場合、以下のいずれかが当てはまる：
-   - コミットメッセージのフォーマットが不正（`r{discussion_id}` 単独表記になっていない等）
+   - コミットメッセージのフォーマットが不正（例：`r3497195823` がない）
    - スクリプトの内部正規表現が環境差を吸収できていない
 
 3. **この場合はユーザーに状況を報告し、手動で GraphQL mutation を投稿する方式へ切り替える**
@@ -85,9 +90,9 @@ thread 内に、今回の返信フォーマットと一致する返信が既に�
 
 スキップした場合は、どの comment をなぜスキップしたかを最後に報告する。
 
-### 4. コメント URL から discussion ID を取り出す
+### 4. コメント URL からコメントIDを取り出す
 
-各対象コメント URL の `#discussion_r...` 部分から数字を取り出し、コミット規約（`r{discussion_id}` 単独表記）に合わせて `r` を接頭辞にした探索キーへ変換する。
+各対象コメント URL から数値部分を取り出し、`r2930211027` の形式に正規化する。
 
 例:
 
@@ -95,15 +100,15 @@ thread 内に、今回の返信フォーマットと一致する返信が既に�
 https://github.com/Nao-Mk2/coding-agent-attachments/pull/1#discussion_r1234567890
 ```
 
-この場合、URL 末尾は `discussion_r1234567890` だが、探索キーは `discussion_` を除いた `r1234567890` である。
+この場合の探索キーは `r2930211027` である。
 
 ### 5. git log から対応コミットを特定する
 
-`git log` の subject と body を対象に、探索キー（`r{discussion_id}`）を含むコミットを検索する。
+`git log` の subject と body を対象に、`r{comment ID}` を含むコミットを検索する。
 
 推奨方針:
 
-- `git log --grep="r{discussion_id}" -n 1 --format=%H` を優先する（`discussion_` プレフィックスは付けない）
+- `git log --grep="r{comment ID}" -n 1 --format=%H` を使う
 - 取れない場合のみ subject と body の全文検索に落とす
 - 複数コミットがヒットした場合は、通常は最も新しいコミットを採用する
 
@@ -192,7 +197,7 @@ EOF
 - 原則として resolve も新たに行わない
 - 既存 reply を根拠にスキップしたと報告する
 
-### ケースD: 複数コミットが同じ discussion ID を参照している
+### ケースD: 複数コミットが同じコメントIDを参照している
 
 - 原則として最新コミットを採用する
 - ただしユーザーが「最初に対応したコミットを出したい」と指定した場合はそれに従う
@@ -207,7 +212,7 @@ EOF
 - unresolved の thread だけを対象にしている
 - reviewer login の条件を満たすコメントだけを対象にしている
 - PR 番号未指定時に現在ブランチの PR を正しく解決している
-- 各返信が元コメントの discussion ID と対応するコミットに基づいている
+- 各返信が元コメントの `r{comment ID}` と対応するコミットに基づいている
 - 同一内容の重複返信を避けている
 - 指定された返信フォーマットを崩していない
 - reply 成功後のみ resolve している

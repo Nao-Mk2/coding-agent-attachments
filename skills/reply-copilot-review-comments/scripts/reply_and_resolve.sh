@@ -11,7 +11,7 @@ usage() {
 Usage: reply_and_resolve.sh [--pr NUMBER] [--reviewer LOGIN] [--dry-run]
 
 Replies to unresolved review comments whose author matches the reviewer login,
-using commit messages that reference the corresponding discussion_r URL, then
+using commit messages that reference the corresponding r{comment ID}, then
 resolves the review thread if the reply succeeds.
 
 Options:
@@ -100,6 +100,7 @@ gh api graphql \
 
 python3 - <<'PY' "$tmp_json" "$reviewer_login" "$viewer_login" "$owner" "$repo" "$pr_number" "$dry_run"
 import json
+import re
 import subprocess
 import sys
 
@@ -132,14 +133,15 @@ for thread in threads:
 
     for comment in targets:
         url = comment["url"]
-        if "#discussion_" not in url:
-            skipped.append({"comment_id": comment["databaseId"], "reason": "discussion id not found in URL"})
+        match = re.search(r"r(\d+)$", url)
+        if not match:
+            skipped.append({"comment_id": comment["databaseId"], "reason": "review comment ID not found in URL"})
             continue
 
-        discussion_id = url.rsplit("#", 1)[1]
+        comment_ref = f"r{match.group(1)}"
 
         try:
-            commit_hash = run(["git", "log", f"--grep={discussion_id}", "-n", "1", "--format=%H"]).stdout.strip()
+            commit_hash = run(["git", "log", f"--grep={comment_ref}", "-n", "1", "--format=%H"]).stdout.strip()
         except subprocess.CalledProcessError as exc:
             raise SystemExit(exc.stderr or exc.stdout)
 
