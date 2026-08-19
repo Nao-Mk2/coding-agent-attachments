@@ -21,6 +21,11 @@ Use this structure for the final PR comment. Keep the headings stable.
 ### 失敗しそうなケース
 -
 
+### 仕様とテストの対応
+| 仕様・不変条件 | 実装箇所 | 利用経路 | テスト | 証拠強度 | 不足 |
+|---|---|---|---|---|---|
+|  |  |  |  | 明示的/間接的/なし/不明 |  |
+
 ### 追加すべきテスト
 | 優先度 | テスト内容 | 確認したいこと | 自動化 |
 |---|---|---|---|
@@ -53,6 +58,8 @@ Use this structure for the final PR comment. Keep the headings stable.
 - Put the most important risks first.
 - Keep each bullet short and actionable.
 - Avoid generic warnings.
+- Report specification-to-test gaps separately from ordinary missing edge-case tests.
+- Distinguish explicit assertions from indirect behavior observed through a broader test.
 - If there is no evidence, write `入力情報からは確認できません`.
 - If test results are provided, say whether they support the evaluation.
 - Always include the core evaluation.

@@ -1,60 +1,72 @@
 # Risk rules
 
-Risk is based on concrete findings, not on the selected characteristic, changed file count, or missing context. Confidence communicates evidence quality separately and never raises risk by itself.
-
-## Finding types
-
-### `confirmed_issue`
-
-The available code establishes an executable failure path. A finding must identify the location, code evidence, failure condition, impact, and required action.
-
-### `credible_risk`
-
-The available code establishes a plausible executable failure path, but specification, environment, production-data, or call-path information is required to confirm the outcome.
-
-### `missing_evidence`
-
-No implementation defect is established, but an important guarantee lacks a test or required evidence. Missing tests alone must not be described as a code defect.
-
-Do not report generic possibilities, minor style or naming issues, behavior absent from the diff, or duplicated findings with the same root cause.
+Use these rules to classify PR risk and decide review focus.
 
 ## High risk
 
-Classify as `高` only when a high-severity `confirmed_issue` concretely establishes at least one of:
+Classify as `高` if any of these are true:
 
-- missing or bypassed authentication or authorization
-- exposure of personal data, credentials, or secrets
-- irreversible or broad deletion or data corruption
-- incorrect money handling or critical state transition
-- inability to recover from a migration failure
-- inconsistency caused by duplicate execution or partial success
-- a production failure that cannot be rolled back safely
+- authentication or authorization changes
+- personal data, sensitive data, payment, or important business data changes
+- DB schema migration, data migration, bulk update, or delete operation
+- external integration, webhook, event, queue, or asynchronous processing changes
+- retry, idempotency, transaction, or recovery behavior changes
+- failure may be hard to roll back
+- tests are missing while the impact range is broad
+- important context is missing and the changed area is security, data, permission, migration, or external integration
+- AI evaluation has low confidence in an important area
 
-Touching authentication, personal data, migration, external integration, asynchronous processing, transaction, or recovery code is routing evidence only. It is not sufficient for `高`.
+Human review should focus on intent, permission model, data impact, failure behavior, rollback, and acceptance criteria.
 
 ## Medium risk
 
-Classify as `中` when no high-risk condition applies and at least one of:
+Classify as `中` if any of these are true and no high-risk condition applies:
 
-- a `confirmed_issue` has material but limited production impact
-- a `credible_risk` has a concrete executable production failure path
-- permission, data integrity, backward compatibility, transaction/retry behavior, or rollback lacks required verification
+- multiple modules or layers changed
+- API or UI behavior changed
+- existing branching logic changed
+- business rule changed
+- dependency changed
+- test coverage exists but edge cases are weak
+- maintainability, compatibility, or reliability may be affected
+
+Human review should focus on changed behavior, edge cases, test adequacy, and consistency with existing design.
 
 ## Low risk
 
-Classify as `低` when neither a high nor medium condition is established. A narrow change, broad change, or missing generic check does not determine this classification by itself.
+Classify as `低` only if all of these are true:
 
-## Confidence
+- impact range is narrow
+- little or no business judgment is needed
+- no data, permission, external integration, migration, or irreversible side effect is involved
+- automated tests or static checks cover the main risk
+- no important low-confidence area remains
 
-- `高`: relevant code and context are available, and observed checks cover the main risk.
-- `中`: findings are grounded, but some non-critical context or checks are unavailable.
-- `低`: essential specification, call-path, production-data, or test evidence is unavailable for the selected characteristics.
+Human review can focus on whether the change matches the stated intent.
 
-Always provide one concise confidence reason. Never promote risk because confidence is low.
+## Failure case prompts
 
-## Report limits
+When identifying likely failures, check these cases first:
 
-- Merge-blocking or merge-relevant findings: maximum 5
-- Missing tests: maximum 3
-- Human judgment points: maximum 3
-- Verified checks: maximum 3
+- empty, null, invalid, duplicated, or stale input
+- insufficient permission
+- external API failure
+- timeout
+- retry after partial success
+- concurrent execution
+- re-run of the same operation
+- old production data that does not match new assumptions
+- missing configuration or environment difference
+- logging sensitive data
+- client using an old API or schema
+
+## Test recommendation rules
+
+For each additional test, include:
+
+- test name
+- what it verifies
+- priority: `高`, `中`, or `低`
+- automation: `できる`, `難しい`, or `人間確認`
+
+Prefer tests that reduce review uncertainty. Do not recommend broad generic tests when a specific test can be named.

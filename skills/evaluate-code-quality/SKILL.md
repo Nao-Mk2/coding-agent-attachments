@@ -13,8 +13,9 @@ Prepare evidence for human review. Do not approve or reject the change.
 Perform one mandatory **core evaluation** covering:
 
 - change intent and scope
+- behavior contracts and invariants affected by the change
 - likely behavioral failures and edge cases
-- test adequacy and missing tests
+- test adequacy, test-oracle strength, and missing tests
 - areas requiring human judgment
 - uncertainty and overall risk
 
@@ -100,7 +101,8 @@ For "staged", use per-file git diff --cached. Otherwise use per-file git diff HE
 For staged or HEAD, do not run local checks; record test evidence as unavailable unless supplied.
 
 Skip semantic analysis of generated and vendored content. Record every changed file.
-For each business-logic file, identify a corresponding test file and whether the changed behavior is covered.
+For each behavior-changing diff, identify the business rule or invariant it changes and map it to the implementation sites, every public/usecase/integration path that consumes it, and the tests and assertions that verify it.
+Classify test evidence as `explicit`, `indirect`, `absent`, or `unclear`. Do not mark behavior as covered merely because a test executes the changed function or because a corresponding test file exists. Check whether the test name and assertions express the rule, whether the assertion would fail on the pre-change implementation, and whether shared helpers have separately covered consumer paths.
 Record truncated or unavailable patches. Note any "_ = value" suppression and any newly changed compound condition with its call site.
 
 Perform characteristic selection after inspecting the diff. Select zero to two only:
@@ -122,6 +124,7 @@ Return JSON with:
 - change_type: string
 - changed_files: string[]
 - business_logic_diffs: string
+- behavior_contracts: array of { rule: string, implementation_sites: string[], consumer_paths: string[], test_files: string[], evidence_strength: "explicit"|"indirect"|"absent"|"unclear", gap: string }
 - test_coverage_notes: string
 - ci_results: string
 - missing_inputs: string
@@ -129,13 +132,28 @@ Return JSON with:
 `, {
   schema: {
     type: 'object',
-    required: ['pr_title', 'pr_body', 'change_type', 'changed_files', 'business_logic_diffs', 'test_coverage_notes', 'ci_results', 'missing_inputs', 'selected_characteristics'],
+    required: ['pr_title', 'pr_body', 'change_type', 'changed_files', 'business_logic_diffs', 'behavior_contracts', 'test_coverage_notes', 'ci_results', 'missing_inputs', 'selected_characteristics'],
     properties: {
       pr_title: { type: 'string' },
       pr_body: { type: 'string' },
       change_type: { type: 'string' },
       changed_files: { type: 'array', items: { type: 'string' } },
       business_logic_diffs: { type: 'string' },
+      behavior_contracts: {
+        type: 'array',
+        items: {
+          type: 'object',
+          required: ['rule', 'implementation_sites', 'consumer_paths', 'test_files', 'evidence_strength', 'gap'],
+          properties: {
+            rule: { type: 'string' },
+            implementation_sites: { type: 'array', items: { type: 'string' } },
+            consumer_paths: { type: 'array', items: { type: 'string' } },
+            test_files: { type: 'array', items: { type: 'string' } },
+            evidence_strength: { type: 'string', enum: ['explicit', 'indirect', 'absent', 'unclear'] },
+            gap: { type: 'string' },
+          },
+        },
+      },
       test_coverage_notes: { type: 'string' },
       ci_results: { type: 'string' },
       missing_inputs: { type: 'string' },
@@ -176,6 +194,8 @@ Body: ${scanResult.pr_body}
 Change type: ${scanResult.change_type}
 Changed files: ${scanResult.changed_files.join(', ')}
 Test coverage: ${scanResult.test_coverage_notes}
+Behavior contracts:
+${JSON.stringify(scanResult.behavior_contracts, null, 2)}
 CI: ${scanResult.ci_results}
 Missing inputs: ${scanResult.missing_inputs}
 
@@ -187,6 +207,9 @@ Return Japanese JSON with:
 - change_reason: string
 - impact_scope: string[]
 - likely_failures: string[]
+- specification_test_gaps: string[]
+- weak_test_oracles: string[]
+- untested_consumer_paths: string[]
 - recommended_tests: array of { priority: "高"|"中"|"低", test_name: string, what_it_verifies: string, automatable: "できる"|"難しい"|"人間確認" }
 - human_focus_points: string[]
 - uncertainty_notes: string[]
@@ -195,12 +218,15 @@ Use concrete diff evidence. Distinguish existing CI evidence from proposed tests
 `, {
   schema: {
     type: 'object',
-    required: ['change_summary', 'change_reason', 'impact_scope', 'likely_failures', 'recommended_tests', 'human_focus_points', 'uncertainty_notes'],
+    required: ['change_summary', 'change_reason', 'impact_scope', 'likely_failures', 'specification_test_gaps', 'weak_test_oracles', 'untested_consumer_paths', 'recommended_tests', 'human_focus_points', 'uncertainty_notes'],
     properties: {
       change_summary: { type: 'string' },
       change_reason: { type: 'string' },
       impact_scope: { type: 'array', items: { type: 'string' } },
       likely_failures: { type: 'array', items: { type: 'string' } },
+      specification_test_gaps: { type: 'array', items: { type: 'string' } },
+      weak_test_oracles: { type: 'array', items: { type: 'string' } },
+      untested_consumer_paths: { type: 'array', items: { type: 'string' } },
       recommended_tests: {
         type: 'array',
         items: {
@@ -338,6 +364,8 @@ Use this structure:
 ## 2. コア評価
 ### 影響範囲
 ### 失敗しそうなケース
+### 仕様とテストの対応
+| 仕様・不変条件 | 実装箇所 | 利用経路 | テスト | 証拠強度 | 不足 |
 ### 追加すべきテスト
 | 優先度 | テスト内容 | 確認したいこと | 自動化 |
 ### 人が重点的に見るべき箇所
@@ -368,6 +396,9 @@ return report
 - Treat the result as review preparation, not a verdict.
 - Keep the core evaluation mandatory and quality-characteristic selection capped at two.
 - Prefer no specialist characteristic over a weakly justified one.
+- Treat specification-to-test traceability and test-oracle strength as mandatory core evaluation, not optional specialist characteristics.
+- Distinguish explicit, indirect, absent, and unclear test evidence.
+- For shared helpers, inspect each meaningful consumer path instead of assuming one caller's test covers all contracts.
 - Separate observed diff/CI evidence, proposed checks, and human judgment.
 - Avoid generic warnings and minor style comments.
 - Expose uncertainty instead of inventing behavior.
