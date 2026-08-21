@@ -1,66 +1,41 @@
 # Output template
 
-Use this structure for the final PR comment. Keep the headings stable.
+最終報告では、次の3セクションだけをこの順序で出力する。
 
 ```md
-# AI一次評価
+# AIコードレビュー
 
-## 1. 変更概要
-- 何を変えたか:
-- なぜ変えたか:
-- 変更種別:
-- 主な変更ファイル:
-- 入力として確認できた情報:
-- 入力として不足している情報:
+## レビュー指摘
 
-## 2. コア評価
+### [Must/Should] 指摘のタイトル
+- 観点: 挙動・事業・ユーザー / セキュリティ / 理解・変更容易性
+- 根拠: `path/to/file:line`
+- 発生条件: 問題が顕在化する入力、状態、操作
+- 影響: 誰に何が起きるか
+- 対応案: 最小限の修正または確認方法
+- 確信度: 高 / 中
 
-### 影響範囲
--
+## 仕様をアサートするテストの不足
 
-### 失敗しそうなケース
--
+### [高/中] 対象仕様を表すタイトル
+- 対象仕様: 変更された仕様または不変条件
+- 実装箇所: `path/to/file:line`
+- 現在のテスト証拠: 対応するテストと、何を確認しているか
+- 不足するアサーション: 明示的に確認されていない結果
+- 推奨テスト: 入力・操作と期待結果
 
-### 仕様とテストの対応
-| 仕様・不変条件 | 実装箇所 | 利用経路 | テスト | 証拠強度 | 不足 |
-|---|---|---|---|---|---|
-|  |  |  |  | 明示的/間接的/なし/不明 |  |
+## AIが判断できなかった点
 
-### 追加すべきテスト
-| 優先度 | テスト内容 | 確認したいこと | 自動化 |
-|---|---|---|---|
-| 高/中/低 |  |  | できる/難しい/人間確認 |
-
-### 人が重点的に見るべき箇所
--
-
-## 3. 選定した品質特性
-
-| 品質特性 | 選定理由 | 影響理由 | 確認方法 |
-|---|---|---|---|
-| 選定した特性のみ（0〜2行） |  |  |  |
-
-選定対象がない場合は「追加の品質特性は選定されませんでした。」と記載する。
-
-## 4. AI評価の自信が低い箇所
--
-
-## 5. レビュー方針
-- リスク分類: 低 / 中 / 高
-- 分類理由:
-- レビューで重点的に見る点:
-- 自動検査に任せてよい点:
-- マージ前に必須で確認すべき点:
+- 判断できないこと（重要な理由: ... / 確認に必要な情報: ...）
 ```
 
-## Writing guidance
+## 出力規則
 
-- Put the most important risks first.
-- Keep each bullet short and actionable.
-- Avoid generic warnings.
-- Report specification-to-test gaps separately from ordinary missing edge-case tests.
-- Distinguish explicit assertions from indirect behavior observed through a broader test.
-- If there is no evidence, write `入力情報からは確認できません`.
-- If test results are provided, say whether they support the evaluation.
-- Always include the core evaluation.
-- Include zero to two selected quality-characteristic rows; never output all nine mechanically.
+- `Must`は、今回の差分で対応しなければ具体的な不利益が生じうる問題に使用する。
+- `Should`は、将来の誤変更やレビュー負荷を実質的に増やす実装に使用する。
+- 指摘とテスト不足は、それぞれ重要度順に並べる。
+- 同じ原因から生じる指摘は統合し、1項目1論点とする。
+- コード欠陥とテスト不足を重複して報告してよいが、それぞれの目的を分けて記述する。
+- 該当項目がないセクションには`該当なし`と記載する。
+- 不確実性は結論を左右するものだけを一行で記載する。
+- 変更概要、肯定的な所感、一般論、網羅的なチェックリストは追加しない。
