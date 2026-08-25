@@ -1,6 +1,6 @@
 ---
 name: evaluate-code-quality
-description: Review pull requests and repository-backed diffs for concrete regressions, business or user harm, security issues, comprehension risks, and missing specification assertions. Use for PR, staged, or HEAD review before human review or merge; do not use for implementation or broad quality scoring.
+description: Review pull requests and repository-backed diffs for concrete regressions, business or user harm, security issues, architecture responsibility violations, comprehension risks, and missing specification assertions. Use for PR, staged, or HEAD review before human review or merge; do not use for implementation or broad quality scoring.
 license: MIT
 ---
 
@@ -15,9 +15,12 @@ license: MIT
 - 既存挙動、事業、ユーザーに対する不利益
 - セキュリティ
 - 理解容易性と変更容易性
+- リポジトリで明文化されたアーキテクチャ上の責務と依存方向
+- 単一責任の原則に基づく変更理由の分離
 - 変更された仕様を直接アサートするテストの不足
 
 評価前に [references/review-contract.md](references/review-contract.md) を読み、最終報告時に [references/output-template.md](references/output-template.md) を適用する。
+アーキテクチャ、境界、責務、依存方向を評価する場合は、判断前に [references/architecture-responsibility.md](references/architecture-responsibility.md) を読む。
 
 ## 入力と証拠の収集
 
@@ -25,8 +28,9 @@ license: MIT
 
 最初は変更の全容を把握するために必要な情報だけを収集する。
 
-- PRでは、まずタイトル、本文、変更ファイル、diff統計、CI結果、関連Issue・仕様を確認する。per-file patchは、主担当または委譲先が担当観点に必要なファイルだけを読む。
-- `staged`ではステージ済み差分、指定がなければHEADとの差分を確認する。
+- PRでは、最初にbase SHAとhead SHAを確定し、以後の主担当とsub-agentの調査へ同じSHAを使用する。その後、タイトル、本文、変更ファイル、diff統計、CI結果、関連Issue・仕様を確認する。per-file patchは、主担当または委譲先が担当観点に必要なファイルだけを読む。
+- PRの証拠は原則として`git diff <base_sha>...<head_sha>`、`git show <head_sha>:<path>`、`git show <base_sha>:<path>`から収集する。作業中のHEAD、index、working treeをPRの証拠として使用しない。
+- `staged`では`git diff --cached`とindex上の内容だけを対象とし、unstaged差分を混ぜない。指定がなければHEADとの差分を確認する。
 - 変更ファイル一覧とdiff統計から、影響する境界、共有処理、利用経路を特定する。
 - 差分だけで判断せず、変更箇所の周辺、呼び出し元、公開契約、既存テストを必要な範囲で読む。
 - 生成物とvendorは原則として意味解析の対象外とする。ただし、公開型や契約への影響確認に必要な場合は読む。
@@ -40,7 +44,18 @@ license: MIT
 
 - **挙動と仕様テスト**: 挙動変更、共有処理、複数の利用経路、事業ルール、不変条件を調査する。
 - **セキュリティ**: 認証・認可、入力、機密データ、秘密情報、外部通信、依存関係などの境界を調査する。
-- **理解・変更容易性**: 責務の混在、分散した不変条件、過剰な間接化、追跡しにくいデータフローを調査する。
+- **理解・変更容易性**: 分散した不変条件、過剰な間接化、追跡しにくいデータフローを調査する。
+- **アーキテクチャと責務**: リポジトリで明文化された責務、依存方向、境界型、ポート、単一責任、変更理由の混在を調査する。
+
+ユーザーがアーキテクチャ、レイヤ責務、依存方向、単一責任を明示的に依頼した場合は、差分の大小にかかわらず**アーキテクチャと責務**専用のsub-agentへ委譲する。通常のコードレビューでも、次のいずれかがある場合は同じ担当へ委譲する。
+
+- 複数のパッケージやモジュールを跨ぐ変更
+- interface、port、adapter、client、repositoryの変更
+- command、DTO、event、公開型の変更
+- 依存注入やアプリケーション組み立ての変更
+- 業務判断、外部通信、永続化、表示変換の移動
+
+小さく局所的で、境界や依存関係を変えない差分は主担当が直接確認してよい。専用sub-agentには [references/architecture-responsibility.md](references/architecture-responsibility.md) を読ませ、PRでは固定したbase SHAとhead SHAを明示する。変更概要やdiffの再掲を求めず、同referenceの返却形式に従わせる。
 
 複数観点を独立に調査できる場合は並列に委譲する。sub-agentには変更概要の作成やdiffの再掲を求めず、リポジトリを直接調査させ、次の候補だけを簡潔に返させる。
 
@@ -59,7 +74,7 @@ sub-agentの候補をそのまま転記しない。主担当が根拠箇所を�
 - 事業、ユーザー、セキュリティ、保守に対する実質的な影響を説明できる。
 - 対応または追加確認によって解消できる。
 
-重複、一般論、書き方の好み、根拠の弱い推測は除外する。重要だが確信を持てない候補は指摘にせず、不確実性へ移す。
+アーキテクチャと責務の候補は、固定した比較対象のbaseとheadを主担当がともに確認し、`introduced`または`worsened`だけを残す。`pre-existing`、`unclear`、一般論、設計上の好み、具体的な誤変更経路を説明できない候補は除外する。その他の重複、書き方の好み、根拠の弱い推測も除外し、重要だが確信を持てない候補は指摘にせず、不確実性へ移す。
 
 ## 最終報告
 
