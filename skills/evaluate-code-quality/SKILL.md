@@ -3,7 +3,6 @@ name: evaluate-code-quality
 description: Review pull requests and repository-backed diffs for concrete regressions, business or user harm, security issues, architecture responsibility violations, comprehension risks, and missing specification assertions. Use for PR, staged, or HEAD review before human review or merge; do not use for implementation or broad quality scoring.
 license: MIT
 ---
-
 # Code Quality Reviewer
 
 ## 目的
@@ -18,6 +17,7 @@ license: MIT
 - リポジトリで明文化されたアーキテクチャ上の責務と依存方向
 - 単一責任の原則に基づく変更理由の分離
 - 変更された仕様を直接アサートするテストの不足
+- レビュー対象外のシステムとの契約に依存する確認事項
 
 評価前に [references/review-contract.md](references/review-contract.md) を読み、最終報告時に [references/output-template.md](references/output-template.md) を適用する。
 アーキテクチャ、境界、責務、依存方向を評価する場合は、判断前に [references/architecture-responsibility.md](references/architecture-responsibility.md) を読む。
@@ -33,6 +33,7 @@ license: MIT
 - `staged`では`git diff --cached`とindex上の内容だけを対象とし、unstaged差分を混ぜない。指定がなければHEADとの差分を確認する。
 - 変更ファイル一覧とdiff統計から、影響する境界、共有処理、利用経路を特定する。
 - 差分だけで判断せず、変更箇所の周辺、呼び出し元、公開契約、既存テストを必要な範囲で読む。
+- 外部システムの挙動を前提にする変更では、リポジトリ内の仕様、クライアント実装、テスト、関連資料から契約を確認する。契約が確認できない場合は、外部システムが契約に反する可能性の仮定だけでレビュー指摘にしない。
 - 生成物とvendorは原則として意味解析の対象外とする。ただし、公開型や契約への影響確認に必要な場合は読む。
 - 提供済みのCI結果と、コードからの推論を区別する。
 
@@ -61,6 +62,7 @@ license: MIT
 
 - 指摘候補: `Must`または`Should`、観点、タイトル、`path:line`、発生条件、影響、対応案、確信度
 - テスト不足候補: 対象仕様、実装箇所、現在のテスト証拠、不足するアサーション、推奨テスト、優先度
+- 外部契約候補: 対象システム、リポジトリ側の前提、確認できない外部契約、契約が満たされない場合の影響、確認先
 - 不確実性候補: 判断できないこと、重要な理由、確認に必要な情報
 
 候補がなければ、該当なしとだけ返させる。sub-agentを利用できない場合は、同じ観点を主担当が確認する。
@@ -74,10 +76,12 @@ sub-agentの候補をそのまま転記しない。主担当が根拠箇所を�
 - 事業、ユーザー、セキュリティ、保守に対する実質的な影響を説明できる。
 - 対応または追加確認によって解消できる。
 
-アーキテクチャと責務の候補は、固定した比較対象のbaseとheadを主担当がともに確認し、`introduced`または`worsened`だけを残す。`pre-existing`、`unclear`、一般論、設計上の好み、具体的な誤変更経路を説明できない候補は除外する。その他の重複、書き方の好み、根拠の弱い推測も除外し、重要だが確信を持てない候補は指摘にせず、不確実性へ移す。
+アーキテクチャと責務の候補は、固定した比較対象のbaseとheadを主担当がともに確認し、`introduced`または`worsened`だけを残す。`pre-existing`、`unclear`、一般論、設計上の好み、具体的な誤変更経路を説明できない候補は除外する。その他の重複、書き方の好み、根拠の弱い推測も除外し、重要だが確信を持てない候補は指摘にしない。外部契約次第で正否が変わる候補は専用セクションへ、それ以外は不確実性へ移す。
+
+外部システムの未知の挙動に依存する候補は、レビュー対象リポジトリの`Must`/`Should`と同列に扱わない。[references/review-contract.md](references/review-contract.md)の基準で「外部システム契約に依存する確認事項」へ分離する。リポジトリ内に契約の根拠がある場合は、その根拠に従って指摘へ昇格するか候補を除外する。
 
 ## 最終報告
 
-`output-template.md`の3セクションだけを出力し、重要度順に並べる。変更概要、品質特性表、総合リスク分類、一般的な追加テスト一覧は出力しない。該当項目がないセクションには`該当なし`と記載する。
+`output-template.md`の4セクションだけを出力し、重要度順に並べる。変更概要、品質特性表、総合リスク分類、一般的な追加テスト一覧は出力しない。該当項目がないセクションには`該当なし`と記載する。
 
 PRへコメントを投稿するのは、ユーザーが明示的に依頼した場合だけとする。ユーザーの言語に合わせ、指定がなければ日本語で報告する。
