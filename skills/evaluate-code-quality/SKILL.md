@@ -1,6 +1,6 @@
 ---
 name: evaluate-code-quality
-description: Review pull requests and repository-backed diffs for concrete regressions, business or user harm, security issues, architecture responsibility violations, comprehension risks, and missing specification assertions. Use for PR, staged, or HEAD review before human review or merge; do not use for implementation or broad quality scoring.
+description: Review pull requests and repository-backed diffs for concrete regressions, business or user harm, security issues, performance measurement candidates, architecture responsibility violations, comprehension risks, and missing specification assertions. Use for PR, staged, or HEAD review before human review or merge; do not use for implementation or broad quality scoring.
 license: MIT
 ---
 # Code Quality Reviewer
@@ -13,6 +13,7 @@ license: MIT
 
 - 既存挙動、事業、ユーザーに対する不利益
 - セキュリティ
+- CPU、メモリ、DB、ネットワーク、I/O、ロック競合などの資源消費と性能劣化
 - 理解容易性と変更容易性
 - リポジトリで明文化されたアーキテクチャ上の責務と依存方向
 - 単一責任の原則に基づく変更理由の分離
@@ -45,6 +46,7 @@ license: MIT
 
 - **挙動と仕様テスト**: 挙動変更、共有処理、複数の利用経路、事業ルール、不変条件を調査する。
 - **セキュリティ**: 認証・認可、入力、機密データ、秘密情報、外部通信、依存関係などの境界を調査する。
+- **パフォーマンス**: CPU、メモリ、DB、ネットワーク、ディスクI/O、外部API呼び出し、ロック競合、各種プール、レイテンシへの影響を調査する。
 - **理解・変更容易性**: 分散した不変条件、過剰な間接化、追跡しにくいデータフローを調査する。
 - **アーキテクチャと責務**: リポジトリで明文化された責務、依存方向、境界型、ポート、単一責任、変更理由の混在を調査する。
 
@@ -58,9 +60,12 @@ license: MIT
 
 小さく局所的で、境界や依存関係を変えない差分は主担当が直接確認してよい。専用sub-agentには [references/architecture-responsibility.md](references/architecture-responsibility.md) を読ませ、PRでは固定したbase SHAとhead SHAを明示する。変更概要やdiffの再掲を求めず、同referenceの返却形式に従わせる。
 
+sub-agentを利用するレビューでは、パフォーマンスを他の観点と混ぜず、専用のsub-agentへ委譲する。sub-agentを利用できない場合や主担当が直接確認する小さな差分でも、パフォーマンスを独立した観点として調査する。
+
 複数観点を独立に調査できる場合は並列に委譲する。sub-agentには変更概要の作成やdiffの再掲を求めず、リポジトリを直接調査させ、次の候補だけを簡潔に返させる。
 
 - 指摘候補: `Must`または`Should`、観点、タイトル、`path:line`、発生条件、影響、対応案、確信度
+- パフォーマンス計測候補: タイトル、`path:line`、負荷増加の仕組み、顕在化しうる条件、懸念する資源と影響、計測案
 - テスト不足候補: 対象仕様、実装箇所、現在のテスト証拠、不足するアサーション、推奨テスト、優先度
 - 外部契約候補: 対象システム、リポジトリ側の前提、確認できない外部契約、契約が満たされない場合の影響、確認先
 - 不確実性候補: 判断できないこと、重要な理由、確認に必要な情報
@@ -78,10 +83,12 @@ sub-agentの候補をそのまま転記しない。主担当が根拠箇所を�
 
 アーキテクチャと責務の候補は、固定した比較対象のbaseとheadを主担当がともに確認し、`introduced`または`worsened`だけを残す。`pre-existing`、`unclear`、一般論、設計上の好み、具体的な誤変更経路を説明できない候補は除外する。その他の重複、書き方の好み、根拠の弱い推測も除外し、重要だが確信を持てない候補は指摘にしない。外部契約次第で正否が変わる候補は専用セクションへ、それ以外は不確実性へ移す。
 
+パフォーマンス候補は通常の指摘と同じ証拠水準を要求せず、差分にある負荷増加の仕組みと、それが顕在化しうるデータ量、頻度、同時実行数などを説明できるものを残す。実害を断定せず、計測によって確認する候補として扱う。抽象的な可能性、差分で悪化していない既存処理、増幅要因のないマイクロ最適化は除外する。実測値、明示されたSLO、既知の上限などがあり、通常の`Must`または`Should`の基準を満たす場合は、パフォーマンス計測候補ではなく通常の指摘として扱う。
+
 外部システムの未知の挙動に依存する候補は、レビュー対象リポジトリの`Must`/`Should`と同列に扱わない。[references/review-contract.md](references/review-contract.md)の基準で「外部システム契約に依存する確認事項」へ分離する。リポジトリ内に契約の根拠がある場合は、その根拠に従って指摘へ昇格するか候補を除外する。
 
 ## 最終報告
 
-`output-template.md`の4セクションだけを出力し、重要度順に並べる。変更概要、品質特性表、総合リスク分類、一般的な追加テスト一覧は出力しない。該当項目がないセクションには`該当なし`と記載する。
+`output-template.md`の5セクションだけを出力し、通常の指摘は重要度順、パフォーマンス計測候補は想定される影響が大きい順に並べる。変更概要、品質特性表、総合リスク分類、一般的な追加テスト一覧は出力しない。該当項目がないセクションには`該当なし`と記載する。
 
 PRへコメントを投稿するのは、ユーザーが明示的に依頼した場合だけとする。ユーザーの言語に合わせ、指定がなければ日本語で報告する。
